@@ -1,6 +1,6 @@
 # Jarritos
 
-![](./doc/logo.png)
+![](./docs/banner.png)
 
 A serverless, AWS-native, self-hosted data quality and observability platform built on the free public Soda Core v4 packages and reladiff, driven by YAML configuration.
 
