@@ -60,7 +60,7 @@ It targets these problems:
 - Agents propose metrics and tests for new tables, and they triage anomalies to separate real issues from false positives. Both run on a model you choose, such as Bedrock, and triage falls back to a deterministic rule when no model is available.
 - The same YAML runs with the CLI, in Docker Compose, in CI and in AWS.
 
-## What the agents do
+## What the agents do 🤖
 
 Two agents are planned. Both are built with LangGraph, both are optional, and jarritos runs contracts, monitors, diffs and detectors with them turned off.
 
@@ -103,7 +103,7 @@ The sources tested in CI will be PostgreSQL, Redshift, Snowflake and Athena, plu
 
 `jarritos validate` will report the tier of each datasource and fail configs that ask for a feature the tier lacks.
 
-## Architecture
+## Architecture 🏗️
 
 The design is a hub and runner topology. The hub account holds configuration, the metrics store, the API, analysis and sinks. A runner stack is deployed once per AWS account, VPC or region that hosts sources, so sources in other accounts are reached by a runner next to them. Source credentials stay in the runner's account, and only results cross accounts. The hub account also gets a runner, so a first install is a single account.
 
@@ -457,7 +457,7 @@ Diff detail contains raw rows. It is KMS-encrypted, capped, expired by an S3 lif
 
 Runners keep source data in its own account and region. Bedrock cross-region inference can process prompts in another region, so installs with residency rules must pin an in-region model.
 
-## Local development with Docker
+## Local development with Docker 🐳
 
 Most of the product loop can run on a laptop with Docker Compose before any AWS account is used. The Compose stack is a planned development and demo environment. It is not a substitute for the production AWS topology, and it covers a subset of features.
 
@@ -623,7 +623,7 @@ These are unconfirmed and are not facts the design can rely on yet. Milestone M0
 - The license of every dependency, which M0 will audit.
 - Whether the 5,000-dataset target holds. The load test at the end of M2 is the first measurement, and no scale claim will be made before it.
 
-## Roadmap
+## Roadmap 🗺️
 
 | Milestone | Delivers |
 |---|---|
