@@ -1,6 +1,6 @@
 # Load test
 
-Plan for a synthetic harness for the ~5,000-dataset scale assumption. The harness is not written yet. It is planned to run locally without AWS first, then be pointed at a real hub/runner deploy at the end of M2.
+Plan for a synthetic harness for the ~5,000-dataset scale assumption. The harness is not written yet. It is planned to run locally without AWS first, then be pointed at a real home/runner deploy at the end of M2.
 
 **Do not put the 5,000-dataset scale claim in the README until this load test has passed on AWS.**
 
@@ -42,7 +42,7 @@ Placeholder `account_id` values and secret ARNs must be replaced before any AWS 
 
 ## What to measure on AWS (end of M2)
 
-After hub + runner modules are deployed to two accounts and the synthetic (or equivalent) manifest is deployed, exercise hourly schedules and record:
+After home + runner modules are deployed to two accounts and the synthetic (or equivalent) manifest is deployed, exercise hourly schedules and record:
 
 1. **SQS queue age / depth** — job queue and results queue; watch for sustained growth across ticks.
 2. **Errored-run rate** — `errored` outcomes vs completed runs (platform alarm target).
@@ -60,6 +60,6 @@ The local harness will not call AWS. When M2 exists:
 
 1. Generate the manifest (or export expanded YAML once `jarritos deploy` accepts it).
 2. Map runners to real account IDs / queue URLs in Terraform.
-3. Deploy hub + spoke runner; publish the manifest per namespace.
+3. Deploy home + runner; publish the manifest per namespace.
 4. Drive schedules (or invoke the dispatcher) and collect the metrics above.
 5. Only then reference the scale target in the README.

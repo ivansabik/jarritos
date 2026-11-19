@@ -13,7 +13,7 @@ Items from the M0 spikes that documentation and local index checks cannot close.
 ## Needs AWS account / deployment
 
 6. **Runner image size** (uncompressed + ECR) with the final driver set.
-7. **Lambda cold start** p50/p95 for Runner (with and without VPC ENI attachment) and hub Lambdas.
+7. **Lambda cold start** p50/p95 for Runner (with and without VPC ENI attachment) and home-account Lambdas.
 8. **Reladiff on Lambda:** time-to-complete for representative windowed L3 jobs; where soft deadline should sit below 15 minutes.
 9. **Fargate task start time** for the runner image (with/without SOCI).
 10. **Data API ingest:** rows/sec and safe `parameterSets` count for metric_points inserts at chosen ACU; behavior when response approaches 1 MiB.
@@ -21,7 +21,7 @@ Items from the M0 spikes that documentation and local index checks cannot close.
 12. **Athena same-engine join diff:** scanned bytes, cost, and runtime on a large partitioned table with required partition filters.
 13. **Athena concurrency** under per-datasource leases (account quota interaction).
 14. **Cross-engine Athena checksum prototype:** feasibility and cost vs contributing an Athena driver upstream.
-15. **Terraform + OpenTofu:** `plan`/`apply`/`test` on hub and runner modules in two accounts; lockfile differences.
+15. **Terraform + OpenTofu:** `plan`/`apply`/`test` on home and runner modules in two accounts; lockfile differences.
 
 ## Needs product / legal confirmation (non-engineering alone)
 

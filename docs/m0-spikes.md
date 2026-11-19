@@ -119,7 +119,7 @@ Largest single wheels seen on PyPI during this spike (illustrative, not the fina
 | `psycopg2-binary` | ~4–6 MB |
 | Soda datasource meta-packages / reladiff | tiny (&lt;0.1 MB); drivers pull the mass |
 
-A **runner** image that includes Soda Core + reladiff + Postgres/Redshift/Snowflake/Athena drivers + numpy/scipy (if detectors share the image) will likely land in the **hundreds of MB uncompressed** range. Hub Lambdas (no warehouse drivers) should stay much smaller.
+A **runner** image that includes Soda Core + reladiff + Postgres/Redshift/Snowflake/Athena drivers + numpy/scipy (if detectors share the image) will likely land in the **hundreds of MB uncompressed** range. Home-account Lambdas (no warehouse drivers) should stay much smaller.
 
 **Not yet measured on AWS:**
 
@@ -225,9 +225,9 @@ Reladiff has **no Athena driver** ([supported drivers list](https://reladiff.rea
 
 ---
 
-## 8. Terraform modules vs OpenTofu (hub + runner)
+## 8. Terraform modules vs OpenTofu (home + runner)
 
-Plan: hub module + runner module, CI with both Terraform and OpenTofu.
+Plan: home module + runner module, CI with both Terraform and OpenTofu.
 
 ### Compatibility notes
 
@@ -243,7 +243,7 @@ Plan: hub module + runner module, CI with both Terraform and OpenTofu.
 - OpenTofu CLI: **MPL-2.0**.
 - Modules authored by jarritos should be licensed under an OSI license (e.g. Apache-2.0) so either CLI can consume them. CI running both keeps the “free software only” story honest for the IaC toolchain choice.
 
-**Not yet measured:** `terraform test` / `tofu test` on the real hub/runner modules (modules do not exist yet).
+**Not yet measured:** `terraform test` / `tofu test` on the real home/runner modules (modules do not exist yet).
 
 ---
 

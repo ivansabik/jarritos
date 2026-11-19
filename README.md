@@ -105,13 +105,17 @@ The sources tested in CI will be PostgreSQL, Redshift, Snowflake and Athena, plu
 
 ## Architecture 🏗️
 
-The design is a hub and runner topology. The hub account holds configuration, the metrics store, the API, analysis and sinks. A runner stack is deployed once per AWS account, VPC or region that hosts sources, so sources in other accounts are reached by a runner next to them. Source credentials stay in the runner's account, and only results cross accounts. The hub account also gets a runner, so a first install is a single account.
+Jarritos spreads across one home account and one or more runner accounts.
+
+The home account is where jarritos itself is installed. It holds the compiled config, the metrics store, the API, the scheduler, analysis and alert sinks. People and pipelines talk to this account.
+
+A runner is the stack that queries your databases. You deploy one per AWS account, VPC or region that has sources. Credentials stay in that account; only check results cross back to the home account. The home account also gets a runner, so a first install can be a single account.
 
 ```mermaid
 flowchart LR
   cli["jarritos CLI"] -->|"IAM-signed request"| api["API Lambda"]
   ui["Local read-only UI"] -->|"read routes"| api
-  subgraph hub ["Hub account"]
+  subgraph home ["Home account"]
     api --> store[("Aurora Serverless v2")]
     api --> dispatcher["Dispatcher Lambda"]
     scheduler["EventBridge Scheduler"] --> dispatcher
@@ -124,7 +128,7 @@ flowchart LR
     analyze --> store
     analyze --> sinks["Sinks"]
   end
-  subgraph spoke ["Runner stack, one per account"]
+  subgraph runner ["Runner stack, one per account"]
     jobq["SQS job queue"] --> light["Runner Lambda"]
     light -->|"deadline reached"| heavyq["SQS heavy queue"]
     heavyq --> sfn["Step Functions"]
@@ -149,11 +153,11 @@ Aurora Serverless v2 PostgreSQL is reached through the Data API. Only the Ingest
 
 Capped diff detail and agent traces go to S3 under a namespace prefix.
 
-The hub and the runner stack are Terraform modules, written to work with OpenTofu too and tested with both in CI. Container images are built and published to ECR by the release pipeline, and the modules take an image digest as input, so a deploy never builds code. Each account keeps its own Terraform state. Modules are versioned, and the hub accepts runners from a compatible range of versions. Job and result messages carry a schema version, and each runner reports its software version, so the hub can refuse an incompatible runner. Terraform owns infrastructure only. `jarritos deploy` owns dataset configuration and schedules, so a YAML change does not need a Terraform apply.
+The home and runner stacks are Terraform modules, written to work with OpenTofu too and tested with both in CI. Container images are built and published to ECR by the release pipeline, and the modules take an image digest as input, so a deploy never builds code. Each account keeps its own Terraform state. Modules are versioned, and the home account accepts runners from a compatible range of versions. Job and result messages carry a schema version, and each runner reports its software version, so the home account can refuse an incompatible runner. Terraform owns infrastructure only. `jarritos deploy` owns dataset configuration and schedules, so a YAML change does not need a Terraform apply.
 
 `jarritos deploy` validates the config, resolves defaults and writes an immutable compiled manifest per namespace to S3. `jarritos plan` shows the difference first. Each namespace deploys on its own, so one team's repo cannot change another team's config or schedules. Every run records the manifest version it used.
 
-Three engines sit behind adapters. `ContractEngine` wraps Soda Core's `verify_contract_locally`. `DiffEngine` wraps reladiff. `QueryRunner` is jarritos's own thin layer for raw SQL, generated with sqlglot, and it reuses the drivers the two libraries install. One runner image holds Soda Core, reladiff and the drivers, and a smaller image serves the hub Lambdas.
+Three engines sit behind adapters. `ContractEngine` wraps Soda Core's `verify_contract_locally`. `DiffEngine` wraps reladiff. `QueryRunner` is jarritos's own thin layer for raw SQL, generated with sqlglot, and it reuses the drivers the two libraries install. One runner image holds Soda Core, reladiff and the drivers, and a smaller image serves the home-account Lambdas.
 
 The Terraform modules will ship alarms for dead-letter queues, queue age, errored-run rate and missed runs (a dataset with no completed run within a multiple of its schedule).
 
@@ -490,7 +494,7 @@ What the Docker stack is meant to exercise:
 
 What stays out of the Docker subset:
 
-- Multi-account hub and runner topology, IAM and cross-account results
+- Multi-account home and runner topology, IAM and cross-account results
 - Redshift, Snowflake and Athena (unless a developer points a datasource at a real external account, which is optional and outside the default Compose file)
 - Lambda timeout routing, Fargate cold start, Aurora Data API behaviour and CloudWatch billing
 - The 5,000-dataset AWS load test
@@ -509,7 +513,7 @@ The planned UI is read-only and runs only on the user's machine. `jarritos ui` s
 How it authenticates depends on the backend:
 
 - Against the Docker Compose API it uses the local stack credentials (shared token or Compose network). No AWS account is required.
-- Against a deployed AWS hub it signs requests with the user's own AWS credentials. Those credentials identify the user, so there is no separate sign-in, and the same namespace check applies as for the CLI.
+- Against a deployed home account it signs requests with the user's own AWS credentials. Those credentials identify the user, so there is no separate sign-in, and the same namespace check applies as for the CLI.
 
 There is no hosted version in this design. Users cannot reach private subnets, and a hosted UI without sign-in would have to be public or unreachable. A hosted UI with an identity provider in front of it is deferred. When it is added, an Application Load Balancer can authenticate users with an OIDC provider (or Cognito) in front of the same app, and the read API can map identity-provider groups to namespaces.
 
@@ -600,7 +604,7 @@ The cost is more code and one more layer to learn. Ports stay narrow and cover o
 - The Data API reads only from the writer instance and caps responses at 1 MiB. Well past the target scale, the store is meant to move to direct connections through RDS Proxy, which the store interface allows.
 - Inline Map states stop at 40 concurrent iterations, so any future fan-out inside Step Functions needs Distributed Map.
 - Cross-engine Athena diff is not guaranteed in M3. It depends on the M0 spike. Same-engine Athena diff is planned for M3.
-- The hub runs in one region. A second region is a recovery option in M5, not an active-active design.
+- The home account runs in one region. A second region is a recovery option in M5, not an active-active design.
 - Cross-database type differences (timestamp precision, decimals, booleans) can cause false differences. The canonical type system and explicit type maps are the planned mitigation.
 - Account quotas for Lambda concurrency, Fargate vCPUs, Bedrock tokens per minute and Athena concurrent queries can throttle before the design does. The mitigations are reserved concurrency, queue backpressure and a quota checklist in the install guide.
 - LLM cost and non-determinism are limited by incident grouping, cost caps, structured output, the deterministic fallback and the eval set.
@@ -630,8 +634,8 @@ These are unconfirmed and are not facts the design can rely on yet. Milestone M0
 | M0, spikes | The open questions above, answered with real connections and measurements. |
 | M1, core loop (local) | The ports (`ContractEngine`, `DiffEngine`, `QueryRunner`, `SqlBuilder`, `Store`, `Detector`, `Sink` and the AWS ports) with conformance suites, the import-boundary check and in-memory fakes. The config schema with namespaces, defaults, classifications and `validate`. Contract verification with measurements saved to history. The query layer, built-in and custom SQL monitors with incremental scans, and a SQLite store. Freshness and volume with fixed thresholds, schema tracking, and the run outcome model including `errored`. |
 | M1.5, Docker Compose stack | Compose file and images for source and target Postgres, the jarritos store, MinIO, a local queue, API, runner, scheduler and UI. Docker adapters for the store, queue, object storage, secrets and scheduler ports. Seeded demo tables and YAML. End-to-end contracts, monitors, schema tracking and Postgres-to-Postgres diffs without AWS. Read API and Streamlit UI on localhost. Optional Ollama (or another OpenAI-compatible endpoint) for triage; otherwise the deterministic fallback. |
-| M2, AWS deployment | Hub and runner Terraform modules applied to two accounts and tested with Terraform and OpenTofu. A release pipeline that publishes images to ECR. The dispatcher, queues, leases, jitter and compiled manifest. The results queue, partitioned store, retention and migrations. The metadata sweep. Namespace access control and the audit log. The pipeline gate, platform alarms and sinks. The 5,000-dataset load test. |
-| M2b, read-only UI on AWS | The UI and read API wired to the deployed hub with IAM-authorized routes. Reporting views in Aurora. No hosted UI and no sign-in. |
+| M2, AWS deployment | Home and runner Terraform modules applied to two accounts and tested with Terraform and OpenTofu. A release pipeline that publishes images to ECR. The dispatcher, queues, leases, jitter and compiled manifest. The results queue, partitioned store, retention and migrations. The metadata sweep. Namespace access control and the audit log. The pipeline gate, platform alarms and sinks. The 5,000-dataset load test. |
+| M2b, read-only UI on AWS | The UI and read API wired to the deployed home account with IAM-authorized routes. Reporting views in Aurora. No hosted UI and no sign-in. |
 | M3, reconciliation | L1 and L2. Windowed and incremental row diff on Lambda, and full diff on Fargate. Athena same-engine join diff, and cross-engine Athena if the M0 spike allows. A column-level mismatch report and its UI page. |
 | M4, intelligence | Backfill and the three detectors. Incidents, grouping and storm handling, with their UI pages. The triage graph with traces, fallback, feedback and the data exposure policy, and the verdict page. Profile, suggest and discover. |
 | M5, enterprise hardening | PagerDuty, Opsgenie, Jira and ServiceNow integrations. OpenLineage events and catalog integration (Glue Data Catalog first). Disaster recovery with documented recovery targets, restore drills and an optional second region. Supply chain work: image scanning, a software bill of materials and signed releases. An upgrade and rollback procedure with a compatibility matrix for the Soda Core and reladiff pins. |
